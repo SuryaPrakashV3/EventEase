@@ -1,0 +1,16 @@
+@using EventBase.Shared
+@using Microsoft.AspNetCore.Components
+
+<div class="card event-card mb-3" style="max-width: 540px;">
+    <div class="card-body">
+        <h5 class="card-title">@(Event != null ? Event.Name : "Unknown event")</h5>
+        <h6 class="card-subtitle mb-2 text-muted">@(Event != null ? Event.Date.ToString("MMMM d, yyyy") + " — " + Event.Location : string.Empty)</h6>
+        <p class="card-text">@(Event != null ? Event.ShortDescription : string.Empty)</p>
+        <NavLink class="card-link" href="@($"/events/{(Event != null ? Event.Id : string.Empty)}")">Details</NavLink>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public EventItem Event { get; set; } = default!;
+}

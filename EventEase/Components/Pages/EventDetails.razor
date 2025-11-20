@@ -1,0 +1,36 @@
+@page "/events/{id}"
+@using EventBase.Shared
+@inject NavigationManager Nav
+@inject EventBase.Services.IEventService EventService
+
+<PageTitle>Event Details</PageTitle>
+
+@code {
+    [Parameter]
+    public string id { get; set; } = string.Empty;
+
+    private EventItem? item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        item = await EventService.GetEventByIdAsync(id);
+    }
+}
+
+@if (item == null)
+{
+    <h1>Event not found</h1>
+    <p>The event you're looking for could not be found.</p>
+    <button class="btn btn-secondary" @onclick="BackToEvents">Back to Events</button>
+}
+else
+{
+    <h1>@item.Name</h1>
+    <h6 class="text-muted">@item.Date.ToString("MMMM d, yyyy") — @item.Location</h6>
+    <p>@item.Description</p>
+    <button class="btn btn-secondary" @onclick="BackToEvents">Back to Events</button>
+}
+
+@code {
+    void BackToEvents() => Nav.NavigateTo("/events/list");
+}

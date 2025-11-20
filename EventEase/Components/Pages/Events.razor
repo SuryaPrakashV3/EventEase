@@ -1,0 +1,46 @@
+@page "/events/list"
+@using EventBase.Shared
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using System.Linq
+@inject EventBase.Services.IEventService EventService
+@rendermode @(RenderMode.InteractiveServer)
+
+<PageTitle>Events</PageTitle>
+
+<h1>Upcoming Events</h1>
+<p>Browse upcoming events below.</p>
+
+<div style="height:500px;overflow-y:auto;">
+    @* ItemSize should approximate the pixel height of each EventCard. Adjust as needed. *@
+    <Virtualize TItem="EventItem" ItemSize="120" ItemsProvider="@LoadEvents" Context="eventItem">
+        <ItemContent>
+            <EventCard @key="eventItem.Id" Event="@eventItem" />
+        </ItemContent>
+        <Placeholder>
+            <p>Loading&hellip;</p>
+        </Placeholder>
+        <EmptyContent>
+            <p>There are no events to display.</p>
+        </EmptyContent>
+    </Virtualize>
+</div>
+
+@code {
+    private List<EventItem>? allEvents;
+
+    private async ValueTask<ItemsProviderResult<EventItem>> LoadEvents(ItemsProviderRequest request)
+    {
+        if (allEvents == null)
+        {
+            allEvents = await EventService.GetEventsAsync();
+        }
+
+        var total = allEvents.Count;
+        var startIndex = request.StartIndex;
+        var count = Math.Min(request.Count, Math.Max(0, total - startIndex));
+        var page = allEvents.Skip(startIndex).Take(count).ToArray();
+
+        // Return the requested slice and the correct total count
+        return new ItemsProviderResult<EventItem>(page, total);
+    }
+}
