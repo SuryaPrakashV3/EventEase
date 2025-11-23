@@ -10,6 +10,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<EventBase.Services.IEventService, EventBase.Services.InMemoryEventService>();
 // Register user session (scoped per connection)
 builder.Services.AddScoped<EventBase.Services.UserSessionService>();
+// Register attendance service (in-memory)
+builder.Services.AddSingleton<EventBase.Services.IAttendanceService, EventBase.Services.InMemoryAttendanceService>();
+// Register file-backed user store
+builder.Services.AddScoped<EventBase.Services.IUserStoreService, EventBase.Services.FileUserStoreService>();
 
 var app = builder.Build();
 

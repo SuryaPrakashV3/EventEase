@@ -1,4 +1,6 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@rendermode InteractiveServer
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">EventBase</a>
     </div>
@@ -37,6 +39,74 @@
                 <span class="bi bi-person-plus-nav-menu" aria-hidden="true"></span> Register
             </NavLink>
         </div>
+
+    @inject EventBase.Services.UserSessionService Session
+    @inject EventBase.Services.IUserStoreService UserStore
+
+        <div class="nav-item px-3 mt-3">
+            @if (Session.IsLoggedIn)
+            {
+                <div class="small">@Session.UserFullName</div>
+                <div class="small text-muted">@Session.UserEmail</div>
+                <button class="btn btn-link p-0" @onclick="Logout">Logout</button>
+            }
+            else
+            {
+                <InputText class="form-control form-control-sm mb-1" placeholder="Email" @bind-Value="email" />
+                <InputText type="password" class="form-control form-control-sm mb-1" placeholder="Password" @bind-Value="password" />
+                <button class="btn btn-sm btn-outline-primary" @onclick="Login">Login</button>
+            }
+        </div>
+
+        @code {
+            private string email { get; set; } = string.Empty;
+            private string password { get; set; } = string.Empty;
+
+            protected override void OnInitialized()
+            {
+                Session.OnChange += SessionChanged;
+            }
+
+            private void SessionChanged() => InvokeAsync(StateHasChanged);
+
+            public void Dispose()
+            {
+                Session.OnChange -= SessionChanged;
+            }
+
+            private async Task Login()
+            {
+                if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+                var found = await UserStore.GetUserByEmailAsync(email);
+                if (found is not null)
+                {
+                    var providedHash = HashPassword(password);
+                    if (string.Equals(providedHash, found.PasswordHash))
+                    {
+                        Session.SetUser(found.FullName, found.Email);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    else
+                    {
+                        // invalid credentials - no UI feedback for now
+                    }
+                }
+            }
+
+            private void Logout()
+            {
+                Session.Clear();
+            }
+
+            private static string HashPassword(string pwd)
+            {
+                if (string.IsNullOrEmpty(pwd)) return string.Empty;
+                using var sha = System.Security.Cryptography.SHA256.Create();
+                var bytes = System.Text.Encoding.UTF8.GetBytes(pwd);
+                var hash = sha.ComputeHash(bytes);
+                return System.Convert.ToBase64String(hash);
+            }
+        }
     </nav>
 </div>
 

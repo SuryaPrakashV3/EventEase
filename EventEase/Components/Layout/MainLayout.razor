@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@inject EventBase.Services.UserSessionService Session
 
 <div class="page">
     <div class="sidebar">
@@ -21,3 +23,47 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private const string StorageKey = "eventease.session";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Try to restore session from localStorage
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("EventEaseSession.get", StorageKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                Session.RestoreFromJson(json);
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+
+        // Persist on changes
+        Session.OnChange += PersistSession;
+    }
+
+    private async void PersistSession()
+    {
+        try
+        {
+            if (Session.IsLoggedIn)
+            {
+                var json = Session.ToJson();
+                await JS.InvokeVoidAsync("EventEaseSession.set", StorageKey, json);
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("EventEaseSession.remove", StorageKey);
+            }
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+}

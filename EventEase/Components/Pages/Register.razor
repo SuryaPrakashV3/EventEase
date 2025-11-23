@@ -2,6 +2,7 @@
 @using System.ComponentModel.DataAnnotations
 @using EventBase.Services
 @inject UserSessionService Session
+@inject EventBase.Services.IUserStoreService UserStore
 
 <PageTitle>Register</PageTitle>
 
@@ -39,12 +40,30 @@
 
 @code {
     [SupplyParameterFromForm]
-    private RegisterModel Model { get; set; }
+    private RegisterModel Model { get; set; } = new RegisterModel();
 
-    protected override void OnInitialized() => Model ??= new();
-
-    private void HandleValidSubmit()
+    private async Task HandleValidSubmit()
     {
-        Session.SetUser(Model.FullName, Model.Email);
+        // Basic password hashing (demo only)
+        var hash = HashPassword(Model.Password);
+        var user = new EventBase.Shared.RegisteredUser { FullName = Model.FullName, Email = Model.Email, PasswordHash = hash };
+        var ok = await UserStore.AddUserAsync(user);
+        if (ok)
+        {
+            Session.SetUser(Model.FullName, Model.Email);
+        }
+        else
+        {
+            // email already registered - simple feedback
+        }
+    }
+
+    private static string HashPassword(string pwd)
+    {
+        if (string.IsNullOrEmpty(pwd)) return string.Empty;
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(pwd);
+        var hash = sha.ComputeHash(bytes);
+        return System.Convert.ToBase64String(hash);
     }
 }

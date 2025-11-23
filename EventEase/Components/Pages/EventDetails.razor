@@ -1,7 +1,10 @@
 @page "/events/{id}"
+@rendermode InteractiveServer
 @using EventBase.Shared
 @inject NavigationManager Nav
 @inject EventBase.Services.IEventService EventService
+@inject EventBase.Services.UserSessionService Session
+@inject EventBase.Services.IAttendanceService AttendanceService
 
 <PageTitle>Event Details</PageTitle>
 
@@ -10,10 +13,26 @@
     public string id { get; set; } = string.Empty;
 
     private EventItem? item;
+    private List<EventBase.Shared.AttendanceRecord> attendees = new();
+    private bool userHasMarked = false;
 
     protected override async Task OnParametersSetAsync()
     {
         item = await EventService.GetEventByIdAsync(id);
+        if (item is not null)
+        {
+            attendees = await AttendanceService.GetAttendanceForEventAsync(item.Id);
+            if (Session.IsLoggedIn)
+                userHasMarked = await AttendanceService.HasUserMarkedAsync(item.Id, Session.UserEmail);
+            Session.OnChange += SessionChanged;
+        }
+    }
+
+    private async void SessionChanged()
+    {
+        if (item is null) return;
+        userHasMarked = await AttendanceService.HasUserMarkedAsync(item.Id, Session.UserEmail);
+        StateHasChanged();
     }
 }
 
@@ -28,9 +47,49 @@ else
     <h1>@item.Name</h1>
     <h6 class="text-muted">@item.Date.ToString("MMMM d, yyyy") — @item.Location</h6>
     <p>@item.Description</p>
+    <div class="mt-3">
+        <h5>Attendance</h5>
+        @if (Session.IsLoggedIn)
+        {
+            if (userHasMarked)
+            {
+                <div class="alert alert-success">You have marked attendance for this event.</div>
+            }
+            else
+            {
+                <button class="btn btn-primary" @onclick="MarkAttendance">Mark Attendance</button>
+            }
+        }
+        else
+        {
+            <div class="text-muted">Log in to mark attendance.</div>
+        }
+
+        <ul class="list-unstyled mt-2">
+            @foreach (var a in attendees)
+            {
+                <li>@a.UserFullName (@a.UserEmail) — @a.Timestamp.ToLocalTime().ToString("g")</li>
+            }
+        </ul>
+    </div>
     <button class="btn btn-secondary" @onclick="BackToEvents">Back to Events</button>
 }
 
 @code {
     void BackToEvents() => Nav.NavigateTo("/events/list");
+
+    private async Task MarkAttendance()
+    {
+        if (item is null || !Session.IsLoggedIn) return;
+        var record = new EventBase.Shared.AttendanceRecord
+        {
+            EventId = item.Id,
+            UserEmail = Session.UserEmail,
+            UserFullName = Session.UserFullName
+        };
+        await AttendanceService.MarkAttendanceAsync(item.Id, record);
+        attendees = await AttendanceService.GetAttendanceForEventAsync(item.Id);
+        userHasMarked = true;
+        StateHasChanged();
+    }
 }
